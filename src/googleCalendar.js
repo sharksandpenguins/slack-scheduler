@@ -6,6 +6,9 @@ const GoogleAuth = require('google-auth-library');
 // USER CONFIG - CONFIGURABLE VARIABLES HERE
 const CALENDAR_ID = process.env.PIRATE_CALENDAR_ID || 'primary';
 
+// DEFAULTS
+const DEFAULT_EVENT_RESULTS_MAX = 10;
+
 // If modifying these scopes, delete your previously saved credentials
 // at ~/.credentials/calendar-nodejs-quickstart.json
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
@@ -113,18 +116,18 @@ function listCalendars(auth) {
 }
 
 /**
- * Lists the next 10 events on the user's primary calendar.
+ * Lists the next 10 events on the user's specified calendar.
  *
  * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
-function listEvents(auth, calendarId = CALENDAR_ID) {
+function listEvents(auth, maxResults = DEFAULT_EVENT_RESULTS_MAX, calendarId = CALENDAR_ID) {
   const calendar = google.calendar('v3');
 
   calendar.events.list({
     auth: auth,
     calendarId: calendarId,
     timeMin: (new Date()).toISOString(),
-    maxResults: 10,
+    maxResults: maxResults,
     singleEvents: true,
     orderBy: 'startTime',
   }, (err, response) => {
@@ -137,7 +140,7 @@ function listEvents(auth, calendarId = CALENDAR_ID) {
     if (events.length === 0) {
       console.log('No upcoming events found.');
     } else {
-      console.log('Upcoming 10 events:');
+      console.log(`Upcoming ${events.length} events:`);
       for (let i = 0; i < events.length; i += 1) {
         const event = events[i];
         const start = event.start.dateTime || event.start.date;
@@ -146,6 +149,15 @@ function listEvents(auth, calendarId = CALENDAR_ID) {
       }
     }
   });
+}
+
+/**
+ * Lists the next event on the user's specified calendar.
+ *
+ * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
+ */
+function listNextEvent(auth, calendarId = CALENDAR_ID) {
+  listEvents(auth, 1, calendarId);
 }
 
 // EXECUTE SOME OPERATIONS HERE
@@ -158,5 +170,5 @@ fs.readFile('client_secret.json', (err, content) => {
   }
   // Authorize a client with the loaded credentials, then call the
   // Google Calendar API.
-  authorize(JSON.parse(content), listEvents);
+  authorize(JSON.parse(content), listNextEvent);
 });
