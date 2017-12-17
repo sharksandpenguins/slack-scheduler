@@ -97,20 +97,16 @@ function authorize(credentials, callback) {
  * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
 function listCalendars(auth) {
-  const calendar = google.calendar('v3');
+  return new Promise((resolve, reject) => {
+    const calendar = google.calendar('v3');
 
-  calendar.calendarList.list({ auth }, (err, response) => {
-    if (err) {
-      console.log(`The CalendarList API returned an error: ${err}`);
-      return;
-    }
-    const calendars = response.items;
-    console.log(`Found ${response.items.length} calendars:`);
-    calendars.forEach((calendarItem) => {
-      console.log('-----------------');
-      console.log('id:', calendarItem.id);
-      console.log('summary:', calendarItem.summary);
-      console.log('description:', calendarItem.description ? calendarItem.description : 'none');
+    calendar.calendarList.list({ auth }, (err, response) => {
+      if (err) {
+        reject(new Error(`The CalendarList API returned an error: ${err}`));
+      } else {
+        const calendars = response.items;
+        resolve(calendars);
+      }
     });
   });
 }
@@ -121,33 +117,26 @@ function listCalendars(auth) {
  * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
 function listEvents(auth, maxResults = DEFAULT_EVENT_RESULTS_MAX, calendarId = CALENDAR_ID) {
-  const calendar = google.calendar('v3');
+  return new Promise((resolve, reject) => {
+    const calendar = google.calendar('v3');
 
-  calendar.events.list({
-    auth: auth,
-    calendarId: calendarId,
-    timeMin: (new Date()).toISOString(),
-    maxResults: maxResults,
-    singleEvents: true,
-    orderBy: 'startTime',
-  }, (err, response) => {
-    if (err) {
-      console.log(`The API returned an error: ${err}`);
-      return;
-    }
-    const events = response.items;
-
-    if (events.length === 0) {
-      console.log('No upcoming events found.');
-    } else {
-      console.log(`Upcoming ${events.length} events:`);
-      for (let i = 0; i < events.length; i += 1) {
-        const event = events[i];
-        const start = event.start.dateTime || event.start.date;
-        const description = event.description || '<no description specified>';
-        console.log(`${start} - ${event.summary}: ${description}`);
+    calendar.events.list({
+      auth: auth,
+      calendarId: calendarId,
+      timeMin: (new Date()).toISOString(),
+      maxResults: maxResults,
+      singleEvents: true,
+      orderBy: 'startTime',
+    }, (err, response) => {
+      if (err) {
+        console.log(`The API returned an error: ${err}`);
+        // return;
+        reject(new Error(`The API returned an error: ${err}`));
+      } else {
+        const events = response.items;
+        resolve(events);
       }
-    }
+    });
   });
 }
 
@@ -157,18 +146,10 @@ function listEvents(auth, maxResults = DEFAULT_EVENT_RESULTS_MAX, calendarId = C
  * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
 function listNextEvent(auth, calendarId = CALENDAR_ID) {
-  listEvents(auth, 1, calendarId);
+  return listEvents(auth, 1, calendarId);
 }
 
-// EXECUTE SOME OPERATIONS HERE
-
-// Load client secrets from a local file.
-fs.readFile('client_secret.json', (err, content) => {
-  if (err) {
-    console.log(`Error loading client secret file: ${err}`);
-    return;
-  }
-  // Authorize a client with the loaded credentials, then call the
-  // Google Calendar API.
-  authorize(JSON.parse(content), listNextEvent);
-});
+module.exports.authorize = authorize;
+module.exports.listCalendars = listCalendars;
+module.exports.listEvents = listEvents;
+module.exports.listNextEvent = listNextEvent;
