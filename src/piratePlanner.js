@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const gcal = require('../util/googleCalendar.js');
 
 // TODO: configure this somewhere else
@@ -64,18 +65,47 @@ function getNextEvent(clientSecretContent) {
   });
 }
 
-// Load client secrets from a local file.
-fs.readFile(CLIENT_SECRET, (err, content) => {
-  if (err) {
-    console.log(`Error loading client secret file: ${err}`);
-    return;
+// simple CLI
+// [usage] node ${path.basename(__filename)} <function_name>
+if (process.argv.length > 2) {
+  const cmd = process.argv[2];
+
+  let funcToExecute;
+
+  if (cmd === 'listCalendars') {
+    funcToExecute = listCalendars;
+  } else if (cmd === 'listEvents') {
+    funcToExecute = listEvents;
+  } else if (cmd === 'getNextEvent') {
+    funcToExecute = getNextEvent;
   }
-  // Authorize a client with the loaded credentials, then call the
-  // Google Calendar API.
-  // gcal.authorize(JSON.parse(content), gcal.listNextEvent);
-  // gcal.authorize(JSON.parse(content), gcal.listCalendars);
-  // TODO: Move this TEST CODE somewhere else...
-  listEvents(content);
-  listCalendars(content);
-  getNextEvent(content);
-});
+
+  if (funcToExecute === undefined) {
+    console.log('Please enter a valid command-line option');
+  } else {
+    fs.readFile(CLIENT_SECRET, (err, content) => {
+      if (err) {
+        console.log(`Error loading client secret file: ${err}`);
+        return;
+      }
+      // call our specified function
+      funcToExecute(content);
+    });
+  }
+} else {
+  console.log(`
+    Utility script used to fetch data for the Pirate Planner.
+
+      [usage] node ${path.basename(__filename)} <function_name>
+
+        function_name:
+          - listCalendars
+              get a listing of the user's calendars
+
+          - listEvents
+              list events for a user's given calendar
+
+          - getNextEvent
+              get next event for a user's given calendar
+    `);
+}
