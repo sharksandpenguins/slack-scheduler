@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const gcal = require('../util/googleCalendar.js');
+const slackscheduler = require('../util/slackScheduler.js');
 
 // TODO: configure this somewhere else
 const CLIENT_SECRET = 'client_secret.json';
@@ -65,34 +66,28 @@ function getNextEvent(clientSecretContent) {
   });
 }
 
-// simple CLI
-// [usage] node ${path.basename(__filename)} <function_name>
-if (process.argv.length > 2) {
-  const cmd = process.argv[2];
+function sendPost(clientSecretContent) {
+  gcal.authorize(JSON.parse(clientSecretContent), (auth) => {
+    gcal.listNextEvent(auth)
+      .then((event) => {
+        if (event.length === 0) {
+          console.log('No upcoming event found.');
+        } else {
+          console.log('Upcoming event:');
+          const nextEvent = event[0];
+          const start = nextEvent.start.dateTime || nextEvent.start.date;
+          const description = nextEvent.description || '<no description specified>';
+          console.log(`${start} - ${nextEvent.summary}: ${description}`);
+          slackscheduler.sendPost(description);
+        }
+      })
+      .catch((error) => {
+        console.log(`Error listing the events: ${error}`);
+      });
+  });
+}
 
-  let funcToExecute;
-
-  if (cmd === 'listCalendars') {
-    funcToExecute = listCalendars;
-  } else if (cmd === 'listEvents') {
-    funcToExecute = listEvents;
-  } else if (cmd === 'getNextEvent') {
-    funcToExecute = getNextEvent;
-  }
-
-  if (funcToExecute === undefined) {
-    console.log('Please enter a valid command-line option');
-  } else {
-    fs.readFile(CLIENT_SECRET, (err, content) => {
-      if (err) {
-        console.log(`Error loading client secret file: ${err}`);
-        return;
-      }
-      // call our specified function
-      funcToExecute(content);
-    });
-  }
-} else {
+function usage() {
   console.log(`
     Utility script used to fetch data for the Pirate Planner.
 
@@ -107,5 +102,42 @@ if (process.argv.length > 2) {
 
           - getNextEvent
               get next event for a user's given calendar
+
+          - sendPost
+              get the next event and send it out to the Slack Scheduler webhook
     `);
+}
+
+// simple CLI
+// [usage] node ${path.basename(__filename)} <function_name>
+if (process.argv.length > 2) {
+  const cmd = process.argv[2];
+
+  let funcToExecute;
+
+  if (cmd === 'listCalendars') {
+    funcToExecute = listCalendars;
+  } else if (cmd === 'listEvents') {
+    funcToExecute = listEvents;
+  } else if (cmd === 'getNextEvent') {
+    funcToExecute = getNextEvent;
+  } else if (cmd === 'sendPost') {
+    funcToExecute = sendPost;
+  }
+
+  if (funcToExecute === undefined) {
+    console.log('ERROR: Please enter a valid command-line option');
+    usage();
+  } else {
+    fs.readFile(CLIENT_SECRET, (err, content) => {
+      if (err) {
+        console.log(`Error loading client secret file: ${err}`);
+        return;
+      }
+      // call our specified function
+      funcToExecute(content);
+    });
+  }
+} else {
+  usage();
 }
